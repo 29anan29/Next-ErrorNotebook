@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Compose 应用的主题只需一份空的 Material3 基座；所有真实配色/字体/圆角
+        由 ui/theme 下的 ErrorBookTheme 接管。冷启动窗口背景用暖白画布色，
+        避免启动瞬间的白闪。
+    -->
+    <style name="Theme.ErrorBook" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/canvas_soft</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

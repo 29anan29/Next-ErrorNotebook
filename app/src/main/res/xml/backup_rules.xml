@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 数据仅存本地且 allowBackup=false，此文件仅用于满足 API 31+ 的属性要求。 -->
+<full-backup-content>
+    <exclude domain="root" />
+</full-backup-content>

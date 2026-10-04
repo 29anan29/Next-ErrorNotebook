@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">错因本</string>
+
+    <!-- 底部导航 -->
+    <string name="nav_home">首页</string>
+    <string name="nav_capture">录题</string>
+    <string name="nav_reason_manage">错因</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- 通用 -->
+    <string name="action_back">返回</string>
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_delete">删除</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_retry">重试</string>
+    <string name="action_add">添加</string>
+    <string name="action_close">关闭</string>
+
+    <!-- 首页 -->
+    <string name="home_title">错因排行榜</string>
+    <string name="home_subtitle">按出错次数降序，考前只看这里</string>
+    <string name="home_filter_subject">科目</string>
+    <string name="home_filter_all_subjects">全部科目</string>
+    <string name="home_filter_range">时间</string>
+    <string name="home_range_all">全部</string>
+    <string name="home_range_7d">近 7 天</string>
+    <string name="home_range_30d">近 30 天</string>
+    <string name="home_stat_wrong_count">错 %1$d 次</string>
+    <string name="home_stat_question_count">%1$d 道题</string>
+    <string name="home_empty_title">还没有错因记录</string>
+    <string name="home_empty_body">拍下第一道错题并选择错因，这里就会开始累计频次。</string>
+    <string name="home_empty_action">去录题</string>
+    <string name="home_export">导出</string>
+
+    <!-- 录题 -->
+    <string name="capture_title">录题</string>
+    <string name="capture_take_photo">拍照</string>
+    <string name="capture_pick_gallery">从相册选择</string>
+    <string name="capture_ocr_running">正在识别文字…</string>
+    <string name="capture_ocr_failed">识别失败，可手动输入题目文本</string>
+    <string name="capture_ocr_empty">未识别到文字，可手动输入</string>
+    <string name="capture_field_ocr_text">题目文本</string>
+    <string name="capture_field_note">备注</string>
+    <string name="capture_field_source">来源</string>
+    <string name="capture_field_subject">科目</string>
+    <string name="capture_field_subject_default">未分类</string>
+    <string name="capture_reason_section">为什么错？</string>
+    <string name="capture_reason_required">至少选择一个错因</string>
+    <string name="capture_reason_new_hint">新建错因</string>
+    <string name="capture_reason_detail_hint">补充说明（可选），例如「符号看错」</string>
+    <string name="capture_reason_similar_title">已存在相近的错因</string>
+    <string name="capture_saved">已保存</string>
+    <string name="capture_save_failed">保存失败，请重试</string>
+    <string name="capture_camera_permission">需要相机权限才能拍照</string>
+    <string name="capture_retake">重拍</string>
+
+    <!-- 错因详情（复习模式） -->
+    <string name="reason_detail_title">%1$s</string>
+    <string name="reason_detail_count">共 %1$d 次 · %2$d 道题</string>
+    <string name="reason_detail_reveal">显示错因</string>
+    <string name="reason_detail_hidden_hint">先想一想：我为什么错？</string>
+    <string name="reason_detail_next">下一题</string>
+    <string name="reason_detail_empty">这个错因下还没有题目</string>
+    <string name="reason_detail_progress">第 %1$d / %2$d 题</string>
+
+    <!-- 复习反馈 -->
+    <string name="review_remembered">记住了</string>
+    <string name="review_wrong">又错</string>
+    <string name="review_fuzzy">模糊</string>
+    <string name="review_recorded">已记录</string>
+    <string name="review_all_done">这一组复习完成了</string>
+
+    <!-- 题目详情 -->
+    <string name="question_detail_title">题目详情</string>
+    <string name="question_detail_no_image">图片已丢失</string>
+    <string name="question_detail_ocr_empty">无识别文本</string>
+    <string name="question_detail_reasons">错因</string>
+    <string name="question_detail_delete_confirm">删除这道错题？相关错因频次会同步减少。</string>
+    <string name="question_detail_deleted">已删除</string>
+
+    <!-- 错因管理 -->
+    <string name="reason_manage_title">错因管理</string>
+    <string name="reason_manage_new">新建错因</string>
+    <string name="reason_manage_name">错因名称</string>
+    <string name="reason_manage_category">分类</string>
+    <string name="reason_manage_category_all">未分类</string>
+    <string name="reason_manage_archive">归档</string>
+    <string name="reason_manage_unarchive">取消归档</string>
+    <string name="reason_manage_archived_section">已归档</string>
+    <string name="reason_manage_merge">合并到</string>
+    <string name="reason_manage_merge_done">已合并</string>
+    <string name="reason_manage_delete_confirm">删除错因「%1$s」？相关统计会一并移除。</string>
+    <string name="reason_manage_duplicate_name">已存在同名错因</string>
+    <string name="reason_manage_used_count">%1$d 次</string>
+
+    <!-- 导出 -->
+    <string name="export_title">导出错因清单</string>
+    <string name="export_format">格式</string>
+    <string name="export_top_n">导出错因数量</string>
+    <string name="export_pick_dir">选择保存目录</string>
+    <string name="export_dir_set">已选择目录</string>
+    <string name="export_dir_none">尚未设置默认导出目录</string>
+    <string name="export_start">导出</string>
+    <string name="export_running">正在生成文件…</string>
+    <string name="export_success">已导出到 %1$s</string>
+    <string name="export_failed">导出失败</string>
+    <string name="export_empty">没有可导出的错因</string>
+    <string name="export_permission_lost">目录访问权限已失效，请重新选择</string>
+
+    <!-- 设置 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_subjects">科目管理</string>
+    <string name="settings_subjects_hint">新增、重命名、删除科目</string>
+    <string name="settings_new_subject">新增科目</string>
+    <string name="settings_rename_subject">重命名科目</string>
+    <string name="settings_delete_subject_confirm">删除科目「%1$s」？其下题目会变为未分类。</string>
+    <string name="settings_export_dir">默认导出目录</string>
+    <string name="settings_export_dir_hint">导出错因清单时默认写入该目录</string>
+    <string name="settings_clear_data">清除数据</string>
+    <string name="settings_clear_data_confirm">清除全部错题、错因与复习记录？此操作不可撤销。</string>
+    <string name="settings_cleared">已清除</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_version">版本 %1$s</string>
+    <string name="settings_offline_note">所有数据仅保存在本机，应用不联网。</string>
+    <string name="settings_harmonyos_note">本应用运行于 HarmonyOS 4.x 及以下。HarmonyOS NEXT / 5.0+ 已移除 AOSP 兼容层，无法安装 APK。</string>
+    <string name="settings_install_guide">安装遇到问题？</string>
+    <string name="settings_install_guide_body">若安装被拦截，请在系统设置中关闭「纯净模式」，或允许本应用安装未知来源应用。</string>
+
+    <!-- 错因分类 -->
+    <string name="reason_category_knowledge">知识性</string>
+    <string name="reason_category_habit">习惯性</string>
+    <string name="reason_category_strategy">策略性</string>
+    <string name="reason_category_psych">心理时间</string>
+    <string name="reason_category_uncategorized">未分类</string>
+</resources>

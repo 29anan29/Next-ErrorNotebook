@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    供 XML 层使用的设计令牌（与 ui/theme/Color.kt 保持同一组取值）。
+    这里只放系统层需要的少量颜色：启动窗口背景与状态栏图标反色。
+-->
+<resources>
+    <color name="canvas_soft">#FFF6F5F4</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="ink">#FF000000</color>
+    <color name="primary">#FF0075DE</color>
+    <color name="hairline">#FFE6E6E6</color>
+</resources>
