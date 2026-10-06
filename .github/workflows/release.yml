@@ -100,12 +100,45 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # 不使用 android-actions/setup-android：它内部会尝试安装早已被 Google 从 SDK
+      # 仓库下线的遗留 `tools` 包，报 "Failed to find package 'tools'" 并让整步失败。
+      # GitHub 托管 runner 已预装 Android SDK 与 cmdline-tools，直接用即可。
+      - name: 接受 SDK 许可
+        run: |
+          set -uo pipefail
+          echo "ANDROID_HOME=${ANDROID_HOME:-未设置}"
+          ls -d "${ANDROID_HOME}"/cmdline-tools/*/ 2>/dev/null || true
+          yes | sdkmanager --licenses
+          # sdkmanager 在未真正接受许可时也可能返回 0，因此不信任退出码，
+          # 改为检查 AGP 实际依赖的许可文件是否落盘。
+          for lic in android-sdk-license android-sdk-preview-license; do
+            if [ ! -f "${ANDROID_HOME}/licenses/${lic}" ]; then
+              echo "::error::缺少 ${lic}，SDK 许可未被接受"
+              exit 1
+            fi
+          done
+          echo "SDK 许可已接受 ✓"
 
       - name: 安装 SDK 组件
         run: |
-          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          set -uo pipefail
+          # 同样不信任退出码：许可缺失时 sdkmanager 会打印
+          # "packages can not be installed since their licenses ... were not accepted"
+          # 却仍以 0 退出。gradle.properties 里已开 android.builder.sdkDownload，
+          # 这里装不上时 AGP 会兜底补齐，所以只告警不失败。
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
+            || echo "::warning::sdkmanager 返回非 0，交由 AGP 自动补齐"
+
+          # 但必须按实际落盘校验关键组件，否则后面的构建会以
+          # "Failed to install ... as some licences have not been accepted" 报错
+          missing=0
+          [ -d "${ANDROID_HOME}/platforms/android-35" ] \
+            || { echo "::error::缺 platforms;android-35"; missing=1; }
+          ls -d "${ANDROID_HOME}"/build-tools/35.* >/dev/null 2>&1 \
+            || { echo "::error::缺 build-tools;35.x"; missing=1; }
+          [ -x "${ANDROID_HOME}/platform-tools/adb" ] \
+            || { echo "::warning::缺 platform-tools（不影响构建）"; }
+          exit $missing
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
