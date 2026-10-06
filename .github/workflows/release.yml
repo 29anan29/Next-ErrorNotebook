@@ -126,38 +126,40 @@ jobs:
 
       - name: 接受 SDK 许可
         run: |
-          set -uo pipefail
-          sdkmanager --version
-          yes | sdkmanager --licenses
-          # sdkmanager 在未真正接受许可时也可能返回 0，因此不信任退出码，
-          # 改为检查 AGP 实际依赖的许可文件是否落盘。
-          for lic in android-sdk-license android-sdk-preview-license; do
-            if [ ! -f "${ANDROID_HOME}/licenses/${lic}" ]; then
-              echo "::error::缺少 ${lic}，SDK 许可未被接受"
-              exit 1
-            fi
-          done
+          # 注意：GitHub Actions 的默认 shell 是
+          #   bash --noprofile --norc -eo pipefail {0}
+          # `-e` 是强加的，无法用 set 关掉。
+          # `yes | sdkmanager --licenses` 在 sdkmanager 读完输入并退出后，
+          # yes 会收到 SIGPIPE 返回 141；配合 pipefail 整条管道就是 141，
+          # 于是脚本在「许可其实已全部接受」之后被 -e 中断。
+          # 因此这里必须 `|| true` 忽略管道状态，真正的成败靠下面的落盘校验判断。
+          yes | sdkmanager --licenses || true
+          # platform-35 与 build-tools 35 都是稳定版，只需要 android-sdk-license。
+          # 不额外要求 preview 许可：runner 预置的许可集未必包含它，会造成误报。
+          if [ ! -f "${ANDROID_HOME}/licenses/android-sdk-license" ]; then
+            echo "::error::缺少 android-sdk-license，SDK 许可未被接受"
+            ls -la "${ANDROID_HOME}/licenses" 2>/dev/null || echo "(licenses 目录不存在)"
+            exit 1
+          fi
           echo "SDK 许可已接受 ✓"
 
       - name: 安装 SDK 组件
         run: |
-          set -uo pipefail
-          # 同样不信任退出码：许可缺失时 sdkmanager 会打印
+          # 不信任退出码：许可缺失时 sdkmanager 会打印
           # "packages can not be installed since their licenses ... were not accepted"
-          # 却仍以 0 退出。gradle.properties 里已开 android.builder.sdkDownload，
-          # 这里装不上时 AGP 会兜底补齐，所以只告警不失败。
+          # 却仍以 0 退出；反之也可能非 0 但其实装好了。
+          # gradle.properties 已开 android.builder.sdkDownload，装不上时 AGP 会兜底，
+          # 所以非 0 只告警，成败一律按落盘校验。
           sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0" \
             || echo "::warning::sdkmanager 返回非 0，交由 AGP 自动补齐"
 
-          # 但必须按实际落盘校验关键组件，否则后面的构建会以
-          # "Failed to install ... as some licences have not been accepted" 报错
           missing=0
           [ -d "${ANDROID_HOME}/platforms/android-35" ] \
             || { echo "::error::缺 platforms;android-35"; missing=1; }
           ls -d "${ANDROID_HOME}"/build-tools/35.* >/dev/null 2>&1 \
             || { echo "::error::缺 build-tools;35.x"; missing=1; }
           [ -x "${ANDROID_HOME}/platform-tools/adb" ] \
-            || { echo "::warning::缺 platform-tools（不影响构建）"; }
+            || echo "::warning::缺 platform-tools（不影响构建）"
           exit $missing
 
       - name: Setup Gradle
