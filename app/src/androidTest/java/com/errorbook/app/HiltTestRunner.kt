@@ -10,9 +10,5 @@ import dagger.hilt.android.testing.HiltTestApplication
  * [ErrorBookApp]，否则 Hilt 组件在测试进程中无法被替换。
  */
 class HiltTestRunner : AndroidJUnitRunner() {
-    override fun newApplication(
-        cl: ClassLoader?,
-        className: String?,
-        context: Context?,
-    ): Application = super.newApplication(cl, HiltTestApplication::class.java.name, context)
+    override fun newApplication(cl: ClassLoader?, className: String?, context: Context?): Application = super.newApplication(cl, HiltTestApplication::class.java.name, context)
 }

@@ -21,21 +21,20 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, "errorbook.db")
-            .addCallback(object : androidx.room.RoomDatabase.Callback() {
-                override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                    // 首次建库时批量预置 14 条错因（PRD §11 附录）。
-                    val now = System.currentTimeMillis()
-                    PresetReasons.PRESETS.forEach { preset ->
-                        db.execSQL(
-                            "INSERT INTO reasons (name, category, color, isArchived, createdAt) VALUES (?, ?, ?, 0, ?)",
-                            arrayOf<Any>(preset.name, preset.category, preset.color, now),
-                        )
-                    }
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase = Room.databaseBuilder(context, AppDatabase::class.java, "errorbook.db")
+        .addCallback(object : androidx.room.RoomDatabase.Callback() {
+            override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // 首次建库时批量预置 14 条错因（PRD §11 附录）。
+                val now = System.currentTimeMillis()
+                PresetReasons.PRESETS.forEach { preset ->
+                    db.execSQL(
+                        "INSERT INTO reasons (name, category, color, isArchived, createdAt) VALUES (?, ?, ?, 0, ?)",
+                        arrayOf<Any>(preset.name, preset.category, preset.color, now),
+                    )
                 }
-            })
-            .build()
+            }
+        })
+        .build()
 
     @Provides
     fun provideSubjectDao(db: AppDatabase): SubjectDao = db.subjectDao()

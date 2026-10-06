@@ -32,11 +32,16 @@ val StickerTeal = Color(0xFF2A9D99)
 val StickerGreen = Color(0xFF1AAE39)
 val StickerBrown = Color(0xFF523410)
 
-/** 错因分类 ➝ 贴纸色，做成映射以保证同一分类在全应用颜色一致。 */
-val ReasonCategoryColors: List<Color> = listOf(
-    StickerOrange, // 知识性
-    StickerTeal, // 习惯性
-    StickerPurple, // 策略性
-    StickerPink, // 心理时间
-    StickerSky, // 未分类
-)
+/** 错因分类的中文名与贴纸色，与 [PresetReasons] 里的 category 取值保持一致。 */
+enum class ReasonCategory(val label: String, val color: Color) {
+    KNOWLEDGE("知识性", StickerOrange),
+    HABIT("习惯性", StickerTeal),
+    STRATEGY("策略性", StickerPurple),
+    PSYCHOLOGICAL("心理时间", StickerPink),
+    UNCATEGORIZED("未分类", StickerSky),
+    ;
+
+    companion object {
+        fun fromLabel(label: String?): ReasonCategory = entries.firstOrNull { it.label == label } ?: UNCATEGORIZED
+    }
+}

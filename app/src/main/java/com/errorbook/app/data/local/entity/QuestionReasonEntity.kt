@@ -32,6 +32,6 @@ data class QuestionReasonEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val questionId: Long,
     val reasonId: Long,
-    val detail: String?,
-    val createdAt: Long,
+    val detail: String? = null,
+    val createdAt: Long = 0L,
 )

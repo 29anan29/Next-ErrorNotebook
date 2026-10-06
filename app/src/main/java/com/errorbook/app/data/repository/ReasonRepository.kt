@@ -3,16 +3,15 @@ package com.errorbook.app.data.repository
 import com.errorbook.app.data.local.dao.ReasonDao
 import com.errorbook.app.data.local.entity.ReasonEntity
 import com.errorbook.app.data.model.ReasonWithCount
-import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.Flow
 
 @Singleton
 class ReasonRepository @Inject constructor(
     private val reasonDao: ReasonDao,
 ) {
-    fun getRanking(subjectId: Long?, since: Long?): Flow<List<ReasonWithCount>> =
-        reasonDao.getReasonRanking(subjectId, since)
+    fun getRanking(subjectId: Long?, since: Long?): Flow<List<ReasonWithCount>> = reasonDao.getReasonRanking(subjectId, since)
 
     fun getActive(): Flow<List<ReasonEntity>> = reasonDao.getActive()
 
@@ -26,16 +25,18 @@ class ReasonRepository @Inject constructor(
 
     suspend fun searchSimilar(keyword: String): List<ReasonEntity> = reasonDao.searchSimilar(keyword)
 
-    suspend fun add(name: String, category: String?, color: String?): Long =
-        reasonDao.insert(
-            ReasonEntity(name = name.trim(), category = category, color = color, createdAt = System.currentTimeMillis()),
-        )
+    suspend fun add(name: String, category: String?, color: String?): Long = reasonDao.insert(
+        ReasonEntity(
+            name = name.trim(),
+            category = category,
+            color = color,
+            createdAt = System.currentTimeMillis(),
+        ),
+    )
 
-    suspend fun rename(reason: ReasonEntity, newName: String) =
-        reasonDao.update(reason.copy(name = newName.trim()))
+    suspend fun rename(reason: ReasonEntity, newName: String) = reasonDao.update(reason.copy(name = newName.trim()))
 
-    suspend fun setArchived(reason: ReasonEntity, archived: Boolean) =
-        reasonDao.update(reason.copy(isArchived = archived))
+    suspend fun setArchived(reason: ReasonEntity, archived: Boolean) = reasonDao.update(reason.copy(isArchived = archived))
 
     suspend fun delete(reason: ReasonEntity) = reasonDao.delete(reason)
 

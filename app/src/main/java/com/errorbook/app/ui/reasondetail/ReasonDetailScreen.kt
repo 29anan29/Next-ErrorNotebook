@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -34,16 +33,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.errorbook.app.data.local.entity.ReviewResult
 import com.errorbook.app.ui.components.ErrorBookTopBar
+import com.errorbook.app.ui.theme.NotionShape
 import com.errorbook.app.ui.theme.NotionSpacing
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReasonDetailScreen(
-    onBack: () -> Unit,
-    onQuestionClick: (Long) -> Unit,
-    viewModel: ReasonDetailViewModel = hiltViewModel(),
-) {
+fun ReasonDetailScreen(onBack: () -> Unit, onQuestionClick: (Long) -> Unit, viewModel: ReasonDetailViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -70,7 +66,7 @@ fun ReasonDetailScreen(
             ) {
                 Text("这个错因下还没有题目", style = MaterialTheme.typography.bodyMedium)
             }
-            else -> ReviewPane(
+            else -> ReviewPaneContent(
                 uiState = uiState,
                 modifier = Modifier.padding(padding),
                 onReveal = viewModel::reveal,
@@ -84,14 +80,7 @@ fun ReasonDetailScreen(
 
 /** 复习模式：默认只给题目，「显示错因」后才露出错因与说明。 */
 @Composable
-private fun ReviewPane(
-    uiState: ReasonDetailUiState,
-    modifier: Modifier = Modifier,
-    onReveal: () -> Unit,
-    onReview: (String) -> Unit,
-    onNext: () -> Unit,
-    onQuestionClick: (Long) -> Unit,
-) {
+internal fun ReviewPaneContent(uiState: ReasonDetailUiState, modifier: Modifier = Modifier, onReveal: () -> Unit, onReview: (String) -> Unit, onNext: () -> Unit, onQuestionClick: (Long) -> Unit) {
     val item = uiState.currentItem ?: return
     Column(
         modifier = modifier
@@ -115,7 +104,7 @@ private fun ReviewPane(
             Button(
                 onClick = onReveal,
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.full,
+                shape = NotionShape.full,
             ) {
                 Text("显示错因", style = MaterialTheme.typography.labelLarge)
             }
@@ -158,7 +147,9 @@ private fun ReviewPane(
                 horizontalArrangement = Arrangement.spacedBy(NotionSpacing.xs),
             ) {
                 FeedbackButton("记住了", Modifier.weight(1f)) { onReview(ReviewResult.REMEMBERED) }
-                FeedbackButton("又错", Modifier.weight(1f), emphasise = true) { onReview(ReviewResult.WRONG) }
+                FeedbackButton("又错", Modifier.weight(1f), emphasise = true) {
+                    onReview(ReviewResult.WRONG)
+                }
                 FeedbackButton("模糊", Modifier.weight(1f)) { onReview(ReviewResult.FUZZY) }
             }
 
@@ -189,9 +180,9 @@ private fun ReviewPane(
 @Composable
 private fun FeedbackButton(label: String, modifier: Modifier = Modifier, emphasise: Boolean = false, onClick: () -> Unit) {
     if (emphasise) {
-        Button(onClick = onClick, modifier = modifier, shape = MaterialTheme.shapes.full) { Text(label) }
+        Button(onClick = onClick, modifier = modifier, shape = NotionShape.full) { Text(label) }
     } else {
-        OutlinedButton(onClick = onClick, modifier = modifier, shape = MaterialTheme.shapes.full) { Text(label) }
+        OutlinedButton(onClick = onClick, modifier = modifier, shape = NotionShape.full) { Text(label) }
     }
 }
 

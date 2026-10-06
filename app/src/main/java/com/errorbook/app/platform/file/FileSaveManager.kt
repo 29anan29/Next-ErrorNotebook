@@ -16,12 +16,11 @@ import javax.inject.Singleton
 class FileSaveManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    fun createDirectoryPickerIntent(): Intent =
-        Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
+    fun createDirectoryPickerIntent(): Intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+    }
 
     fun persistPermission(treeUri: Uri) {
         try {
@@ -35,18 +34,16 @@ class FileSaveManager @Inject constructor(
         }
     }
 
-    fun hasPersistedPermission(treeUri: Uri): Boolean =
-        context.contentResolver.persistedUriPermissions.any { it.uri == treeUri }
+    fun hasPersistedPermission(treeUri: Uri): Boolean = context.contentResolver.persistedUriPermissions.any { it.uri == treeUri }
 
-    suspend fun writeFile(treeUri: Uri, fileName: String, mimeType: String, bytes: ByteArray): Result<Uri> =
-        runCatching {
-            val dir = DocumentFile.fromTreeUri(context, treeUri)
-                ?: error("无法访问所选目录")
-            // 先删掉已存在的同名文件，避免重名追加
-            dir.findFile(fileName)?.delete()
-            val file = dir.createFile(mimeType, fileName) ?: error("无法在所选目录创建文件")
-            context.contentResolver.openOutputStream(file.uri)?.use { it.write(bytes) }
-                ?: error("无法写入所选目录")
-            file.uri
-        }
+    suspend fun writeFile(treeUri: Uri, fileName: String, mimeType: String, bytes: ByteArray): Result<Uri> = runCatching {
+        val dir = DocumentFile.fromTreeUri(context, treeUri)
+            ?: error("无法访问所选目录")
+        // 先删掉已存在的同名文件，避免重名追加
+        dir.findFile(fileName)?.delete()
+        val file = dir.createFile(mimeType, fileName) ?: error("无法在所选目录创建文件")
+        context.contentResolver.openOutputStream(file.uri)?.use { it.write(bytes) }
+            ?: error("无法写入所选目录")
+        file.uri
+    }
 }

@@ -3,13 +3,13 @@ package com.errorbook.app.platform.ocr
 import android.content.Context
 import android.net.Uri
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.ChineseTextRecognizerOptions
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * ML Kit 简体中文 OCR 封装。
@@ -24,26 +24,25 @@ class OcrService @Inject constructor(
 ) {
     private val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
 
-    suspend fun recognize(imageUri: Uri): Result<String> =
-        suspendCancellableCoroutine { cont ->
-            try {
-                val image = InputImage.fromFilePath(context, imageUri)
-                recognizer.process(image)
-                    .addOnSuccessListener { visionText ->
-                        val cleaned = visionText.text
-                            .lines()
-                            .map { it.trim() }
-                            .filter { it.isNotEmpty() }
-                            .joinToString("\n")
-                        cont.resume(Result.success(cleaned))
-                    }
-                    .addOnFailureListener { e ->
-                        cont.resume(Result.failure(e))
-                    }
-            } catch (e: Exception) {
-                cont.resume(Result.failure(e))
-            }
+    suspend fun recognize(imageUri: Uri): Result<String> = suspendCancellableCoroutine { cont ->
+        try {
+            val image = InputImage.fromFilePath(context, imageUri)
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    val cleaned = visionText.text
+                        .lines()
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .joinToString("\n")
+                    cont.resume(Result.success(cleaned))
+                }
+                .addOnFailureListener { e ->
+                    cont.resume(Result.failure(e))
+                }
+        } catch (e: Exception) {
+            cont.resume(Result.failure(e))
         }
+    }
 
     fun close() = recognizer.close()
 }

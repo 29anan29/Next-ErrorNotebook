@@ -1,13 +1,13 @@
 package com.errorbook.app.domain.usecase
 
-import com.errorbook.app.data.local.entity.ReviewLogEntity
-import com.errorbook.app.data.local.entity.ReviewResult
+import androidx.room.withTransaction
 import com.errorbook.app.data.local.AppDatabase
 import com.errorbook.app.data.local.entity.QuestionReasonEntity
-import androidx.room.withTransaction
+import com.errorbook.app.data.local.entity.ReviewLogEntity
+import com.errorbook.app.data.local.entity.ReviewResult
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 /**
  * 复习反馈：
@@ -20,12 +20,7 @@ import javax.inject.Inject
 class RecordReviewUseCase @Inject constructor(
     private val db: AppDatabase,
 ) {
-    suspend operator fun invoke(
-        questionReasonId: Long,
-        questionId: Long,
-        reasonId: Long,
-        result: String,
-    ) = withContext(Dispatchers.IO) {
+    suspend operator fun invoke(questionReasonId: Long, questionId: Long, reasonId: Long, result: String) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
         db.withTransaction {
             db.reviewLogDao().insert(

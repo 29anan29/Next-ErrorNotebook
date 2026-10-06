@@ -19,11 +19,7 @@ class ExportRepository @Inject constructor(
     private val pdfExporter: PdfExporter,
 ) {
     /** 生成 PDF 并写入 [dirUri]，返回文件名；失败回 Result.failure。 */
-    suspend fun exportReasonList(
-        dirUri: Uri,
-        fileName: String,
-        entries: List<ExportEntry>,
-    ): Result<Uri> {
+    suspend fun exportReasonList(dirUri: Uri, fileName: String, entries: List<ExportEntry>): Result<Uri> {
         return try {
             val buffer = ByteArrayOutputStream()
             pdfExporter.exportReasonList(entries, buffer)

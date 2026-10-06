@@ -19,12 +19,12 @@ import androidx.room.PrimaryKey
 )
 data class QuestionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val subjectId: Long?,
+    val subjectId: Long? = null,
     val imagePath: String,
-    val ocrText: String?,
-    val note: String?,
-    val source: String?,
-    val saveDirUri: String?,
-    val createdAt: Long,
+    val ocrText: String? = null,
+    val note: String? = null,
+    val source: String? = null,
+    val saveDirUri: String? = null,
+    val createdAt: Long = 0L,
     val mastered: Boolean = false,
 )

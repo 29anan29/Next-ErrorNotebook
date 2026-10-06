@@ -11,8 +11,8 @@ import androidx.room.PrimaryKey
 data class ReasonEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val category: String?,
-    val color: String?,
+    val category: String? = null,
+    val color: String? = null,
     val isArchived: Boolean = false,
-    val createdAt: Long,
+    val createdAt: Long = 0L,
 )

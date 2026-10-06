@@ -3,166 +3,168 @@ package com.errorbook.app.ui.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.errorbook.app.R
-import com.errorbook.app.ui.theme.ErrorBookTheme
+import com.errorbook.app.data.model.ReasonWithCount
+import com.errorbook.app.ui.components.EmptyState
+import com.errorbook.app.ui.components.ErrorBookTopBar
 import com.errorbook.app.ui.theme.NotionSpacing
 
 @Composable
-fun HomeScreen(
-    uiState: HomeUiState,
-    onReasonClick: (Long) -> Unit,
-    onSubjectSelected: (Long?) -> Unit,
-    onTimeRangeSelected: (HomeViewModel.TimeRange) -> Unit,
-    onExportClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(NotionSpacing.md),
-    ) {
-        Header(onExportClick = onExportClick)
-        Filters(
-            subjectId = uiState.selectedSubjectId,
-            timeRange = uiState.timeRange,
-            onSubjectSelected = onSubjectSelected,
-            onTimeRangeSelected = onTimeRangeSelected,
-        )
-        ReasonsList(reasons = uiState.reasons, onReasonClick = onReasonClick)
+fun HomeScreen(onReasonClick: (Long) -> Unit, onExportClick: () -> Unit, modifier: Modifier = Modifier, viewModel: HomeViewModel = hiltViewModel()) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    HomeContent(
+        uiState = uiState,
+        onReasonClick = onReasonClick,
+        onExportClick = onExportClick,
+        onSubjectSelected = viewModel::selectSubject,
+        onTimeRangeSelected = viewModel::selectTimeRange,
+        modifier = modifier,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeContent(uiState: HomeUiState, onReasonClick: (Long) -> Unit, onExportClick: () -> Unit, onSubjectSelected: (Long?) -> Unit, onTimeRangeSelected: (TimeRange) -> Unit, modifier: Modifier = Modifier) {
+    Scaffold(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            ErrorBookTopBar(
+                title = "错因排行榜",
+                subtitle = "按出错次数降序，考前只看这里",
+                actions = {
+                    IconButton(onClick = onExportClick) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_share_2),
+                            contentDescription = "导出",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(modifier = Modifier.padding(padding)) {
+            FilterRow(
+                selectedSubjectId = uiState.selectedSubjectId,
+                subjects = uiState.subjects,
+                timeRange = uiState.timeRange,
+                onSubjectSelected = onSubjectSelected,
+                onTimeRangeSelected = onTimeRangeSelected,
+            )
+
+            when {
+                uiState.isLoading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+                uiState.isEmpty -> EmptyState(
+                    title = "还没有错因记录",
+                    body = "拍下第一道错题并选择错因，这里就会开始累计频次。",
+                    iconRes = R.drawable.ic_lightbulb,
+                )
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = NotionSpacing.md,
+                        end = NotionSpacing.md,
+                        bottom = NotionSpacing.xl,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(NotionSpacing.sm),
+                ) {
+                    items(uiState.reasons, key = { it.id }) { reason ->
+                        ReasonRow(reason = reason, onClick = { onReasonClick(reason.id) })
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun Header(onExportClick: () -> Unit) {
-    Box(
+private fun FilterRow(selectedSubjectId: Long?, subjects: List<com.errorbook.app.data.local.entity.SubjectEntity>, timeRange: TimeRange, onSubjectSelected: (Long?) -> Unit, onTimeRangeSelected: (TimeRange) -> Unit) {
+    var subjectMenuOpen by remember { mutableStateOf(false) }
+    var rangeMenuOpen by remember { mutableStateOf(false) }
+
+    val selectedSubjectName = subjects.firstOrNull { it.id == selectedSubjectId }?.name ?: "全部科目"
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(NotionSpacing.md),
+            .padding(horizontal = NotionSpacing.md, vertical = NotionSpacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(NotionSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("错因排行榜", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun Filters(
-    subjectId: Long?,
-    timeRange: HomeViewModel.TimeRange,
-    onSubjectSelected: (Long?) -> Unit,
-    onTimeRangeSelected: (HomeViewModel.TimeRange) -> Unit,
-) {
-    var expandedSubject by remember { mutableStateOf(false) }
-    var expandedRange by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = NotionSpacing.md),
-        verticalArrangement = Arrangement.spacedBy(NotionSpacing.xs),
-    ) {
-        FilterMenu(
-            label = "全部科目",
-            expanded = expandedSubject,
-            onExpandChange = { expandedSubject = it },
-            menuContent = {
-                DropdownMenuItem(text = { Text("全部科目") }, onClick = { onSubjectSelected(null); expandedSubject = false })
-            },
-        )
-        FilterMenu(
-            label = timeRange.label,
-            expanded = expandedRange,
-            onExpandChange = { expandedRange = it },
-            menuContent = {
-                HomeViewModel.TimeRange.values().forEach { range ->
+        Box {
+            TextButton(onClick = { subjectMenuOpen = true }) {
+                Text(selectedSubjectName, style = MaterialTheme.typography.bodyMedium)
+            }
+            DropdownMenu(expanded = subjectMenuOpen, onDismissRequest = { subjectMenuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("全部科目") },
+                    onClick = {
+                        onSubjectSelected(null)
+                        subjectMenuOpen = false
+                    },
+                )
+                subjects.forEach { subject ->
                     DropdownMenuItem(
-                        text = { Text(range.label) },
-                        onClick = { onTimeRangeSelected(range); expandedRange = false },
+                        text = { Text(subject.name) },
+                        onClick = {
+                            onSubjectSelected(subject.id)
+                            subjectMenuOpen = false
+                        },
                     )
                 }
-            },
-        )
-    }
-}
-
-@Composable
-private fun FilterMenu(
-    label: String,
-    expanded: Boolean,
-    onExpandChange: (Boolean) -> Unit,
-    menuContent: @Composable () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = NotionSpacing.xxs),
-    ) {
-        var menuExpanded by remember { mutableStateOf(expanded) }
-        if (menuExpanded != expanded) menuExpanded = expanded
-
-        Button(
-            onClick = { menuExpanded = !menuExpanded; onExpandChange(menuExpanded) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = androidx.compose.material3.ButtonDefaults.filledButtonColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-        ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
 
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = { menuExpanded = false; onExpandChange(false) },
-        ) {
-            menuContent()
-        }
-    }
-}
-
-@Composable
-private fun ReasonsList(reasons: List<ReasonWithCount>, onReasonClick: (Long) -> Unit) {
-    if (reasons.isEmpty()) {
-        androidx.compose.foundation.layout.Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            androidx.compose.material3.Text(
-                "还没有错因记录\n拍下第一道错题并选择错因，这里就会开始累计频次",
-                textAlign = androidx.compose.ui.text.TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = NotionSpacing.md, vertical = NotionSpacing.sm),
-            contentPadding = NotionSpacing.md.toPaddingValues(),
-            verticalArrangement = Arrangement.spacedBy(NotionSpacing.sm),
-        ) {
-            items(reasons, key = { it.id }) { reason ->
-                ReasonRow(reason = reason, onClick = { onReasonClick(reason.id) })
+        Box {
+            TextButton(onClick = { rangeMenuOpen = true }) {
+                Text(timeRange.label, style = MaterialTheme.typography.bodyMedium)
+            }
+            DropdownMenu(expanded = rangeMenuOpen, onDismissRequest = { rangeMenuOpen = false }) {
+                TimeRange.entries.forEach { range ->
+                    DropdownMenuItem(
+                        text = { Text(range.label) },
+                        onClick = {
+                            onTimeRangeSelected(range)
+                            rangeMenuOpen = false
+                        },
+                    )
+                }
             }
         }
     }
@@ -171,15 +173,11 @@ private fun ReasonsList(reasons: List<ReasonWithCount>, onReasonClick: (Long) ->
 @Composable
 private fun ReasonRow(reason: ReasonWithCount, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(NotionSpacing.xxs),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         onClick = onClick,
     ) {
-        androidx.compose.foundation.layout.Row(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(NotionSpacing.md),
@@ -190,21 +188,25 @@ private fun ReasonRow(reason: ReasonWithCount, onClick: () -> Unit) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(NotionSpacing.xxs),
             ) {
-                Text(reason.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${reason.wrongCount} 次 · ${reason.questionCount} 题", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = reason.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                Text(
+                    // 同时给出「出错次数」与「关联题目数」——PRD §5.4.1 要求两者都展示
+                    text = "错 ${reason.wrongCount} 次 · ${reason.questionCount} 道题",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            androidx.compose.material3.Icon(
+            Icon(
                 painter = painterResource(R.drawable.ic_chevron_right),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = NotionSpacing.sm),
             )
         }
     }
 }
-
-private val HomeViewModel.TimeRange.label: String
-    get() = when (this) {
-        HomeViewModel.TimeRange.ALL -> "全部"
-        HomeViewModel.TimeRange.LAST_7_DAYS -> "近 7 天"
-        HomeViewModel.TimeRange.LAST_30_DAYS -> "近 30 天"
-    }

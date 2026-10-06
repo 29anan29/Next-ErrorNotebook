@@ -2,7 +2,6 @@ package com.errorbook.app.platform.file
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
@@ -52,7 +51,12 @@ class PdfExporter @Inject constructor() {
 
         entries.forEach { entry ->
             ensure(30f)
-            canvas.drawText("${entry.reasonName}（${entry.wrongCount} 次 · ${entry.questionCount} 题）", margin, y, titlePaint)
+            canvas.drawText(
+                "${entry.reasonName}（${entry.wrongCount} 次 · ${entry.questionCount} 题）",
+                margin,
+                y,
+                titlePaint,
+            )
             y += 24f
 
             entry.thumbnailPaths.take(5).forEach { path ->

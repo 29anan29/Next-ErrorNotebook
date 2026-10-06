@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -32,9 +30,10 @@ android {
 
     defaultConfig {
         applicationId = "com.errorbook.app"
-        // HarmonyOS 4.x 的 AOSP 兼容层为 API 31；targetSdk 高于设备 API 依然可正常安装运行。
+        // HarmonyOS 4.x 的 AOSP 兼容层为 API 31；targetSdk 高于设备 API 依然可正常安装运行，
+        // 被 targetSdk gate 的行为变更在该设备上不会触发，因此这里跟随 compileSdk。
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
 

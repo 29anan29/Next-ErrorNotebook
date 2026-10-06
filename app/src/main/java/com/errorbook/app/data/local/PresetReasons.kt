@@ -3,7 +3,7 @@ package com.errorbook.app.data.local
 /**
  * 预置错因（PRD §11 附录）。首次建库时通过 RoomDatabase.Callback 的
  * onCreate 用 execSQL 批量插入；颜色与 ui/theme/Color.kt 的
- * ReasonCategoryColors 保持一一对应，保证各分类圆点全应用同色。
+ * ReasonCategory 枚举保持一一对应，保证各分类圆点全应用同色。
  */
 object PresetReasons {
     private const val COLOR_KNOWLEDGE = "#DD5B00" // StickerOrange

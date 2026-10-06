@@ -9,13 +9,13 @@ import com.errorbook.app.data.repository.QuestionRepository
 import com.errorbook.app.data.repository.ReasonRepository
 import com.errorbook.app.domain.usecase.RecordReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class ReasonDetailUiState(
     val isLoading: Boolean = true,

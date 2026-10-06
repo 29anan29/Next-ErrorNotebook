@@ -7,14 +7,7 @@ import javax.inject.Inject
 class SaveQuestionUseCase @Inject constructor(
     private val questionRepository: QuestionRepository,
 ) {
-    suspend operator fun invoke(
-        imagePath: String,
-        ocrText: String?,
-        note: String?,
-        source: String?,
-        subjectId: Long?,
-        reasonLinks: List<Pair<Long, String?>>,
-    ): Long {
+    suspend operator fun invoke(imagePath: String, ocrText: String?, note: String?, source: String?, subjectId: Long?, reasonLinks: List<Pair<Long, String?>>): Long {
         require(reasonLinks.isNotEmpty()) { "至少需要一个错因" }
         val question = QuestionEntity(
             subjectId = subjectId,

@@ -1,240 +1,414 @@
 package com.errorbook.app.ui.capture
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.errorbook.app.R
-import com.errorbook.app.ui.theme.ErrorBookTheme
-import com.errorbook.app.ui.theme.NotionSpacing
+import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import com.errorbook.app.ui.components.ErrorBookTopBar
+import com.errorbook.app.ui.components.ReasonChip
 import com.errorbook.app.ui.theme.NotionShape
+import com.errorbook.app.ui.theme.NotionSpacing
+import com.errorbook.app.ui.theme.ReasonCategory
+import java.io.File
 
 @Composable
-fun CaptureScreen(
-    viewModel: CaptureViewModel = androidx.lifecycle.viewmodel.compose.hiltViewModel(),
-    onSaved: () -> Unit,
-) {
+fun CaptureScreen(onSaved: () -> Unit, modifier: Modifier = Modifier, viewModel: CaptureViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val formState by viewModel.formState.collectAsStateWithLifecycle()
-    val recentReasons by viewModel.recentReasons.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
-    when (uiState) {
-        is CaptureUiState.Ready -> StartScreen(onTakePhoto = { /* camera intent */ }, onPickGallery = { /* gallery intent */ })
-        is CaptureUiState.Processing -> ProcessingScreen(imageUri = it.imageUri)
-        is CaptureUiState.OcrResult -> EditorScreen(
-            formState = formState,
-            recentReasons = recentReasons,
-            onOcrTextChange = viewModel::updateOcrText,
-            onNoteChange = viewModel::updateNote,
-            onSourceChange = viewModel::updateSource,
-            onSubjectSelect = viewModel::selectSubject,
-            onAddReason = viewModel::addReason,
-            onRemoveReason = viewModel::removeReason,
-            onReasonDetailChange = viewModel::updateReasonDetail,
-            onSave = { viewModel.save(); onSaved() },
-            onBack = { viewModel.reset() },
+    var newReasonName by remember { mutableStateOf("") }
+    var showNewReasonDialog by remember { mutableStateOf(false) }
+    var pendingCameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> uri?.let(viewModel::onGalleryImagePicked) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+    ) { success ->
+        val uri = pendingCameraUri
+        pendingCameraUri = null
+        if (success && uri != null) viewModel.onPhotoCaptured(uri) else viewModel.reset()
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            val uri = createCameraUri(context)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
+        }
+    }
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
+
+    Scaffold(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            ErrorBookTopBar(
+                title = "录题",
+                actions = {
+                    if (uiState.canStartOver) {
+                        TextButton(onClick = viewModel::reset) { Text("重录") }
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        when (uiState.step) {
+            CaptureStep.IDLE -> IdlePane(
+                modifier = Modifier.padding(padding),
+                onTakePhoto = {
+                    if (hasCameraPermission(context)) {
+                        val uri = createCameraUri(context)
+                        pendingCameraUri = uri
+                        cameraLauncher.launch(uri)
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                onPickGallery = {
+                    galleryLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    )
+                },
+            )
+
+            CaptureStep.PROCESSING -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(NotionSpacing.md),
+                ) {
+                    CircularProgressIndicator()
+                    Text("正在压缩并识别文字…", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+
+            CaptureStep.EDITING -> EditPane(
+                uiState = uiState,
+                modifier = Modifier.padding(padding),
+                onOcrTextChange = viewModel::updateOcrText,
+                onNoteChange = viewModel::updateNote,
+                onSourceChange = viewModel::updateSource,
+                onSubjectSelected = viewModel::selectSubject,
+                onToggleReason = viewModel::toggleReason,
+                onReasonDetailChange = viewModel::updateReasonDetail,
+                onSave = { viewModel.save(onSaved) },
+                onOpenNewReason = { showNewReasonDialog = true },
+            )
+        }
+    }
+
+    if (showNewReasonDialog) {
+        NewReasonDialog(
+            name = newReasonName,
+            onNameChange = { newReasonName = it },
+            onConfirm = {
+                viewModel.createReason(newReasonName)
+                newReasonName = ""
+                showNewReasonDialog = false
+            },
+            onDismiss = {
+                newReasonName = ""
+                showNewReasonDialog = false
+            },
         )
-        is CaptureUiState.Error -> ErrorScreen(message = it.message, onRetry = { viewModel.reset() })
+    }
+
+    val candidates = uiState.similarCandidates
+    if (candidates.isNotEmpty()) {
+        SimilarReasonDialog(
+            candidates = candidates,
+            onPick = { existing ->
+                val pending = candidates.first()
+                viewModel.mergeInto(existing, pending)
+            },
+            onDismiss = viewModel::dismissSimilarCandidates,
+        )
     }
 }
 
 @Composable
-private fun StartScreen(
-    onTakePhoto: () -> Unit,
-    onPickGallery: () -> Unit,
-) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(NotionSpacing.lg)) {
-            androidx.compose.material3.Icon(painter = painterResource(R.drawable.ic_camera), contentDescription = null, modifier = Modifier.size(64.dp))
-            Text("录入错题", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("拍照或从相册选择一道题目，OCR 自动识别文字", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            androidx.compose.material3.Button(onClick = onTakePhoto, modifier = Modifier.fillMaxWidth().padding(NotionSpacing.md)) {
-                Text("拍照", style = MaterialTheme.typography.labelLarge)
-            }
-            androidx.compose.material3.OutlinedButton(onClick = onPickGallery, modifier = Modifier.fillMaxWidth().padding(NotionSpacing.md)) {
-                Text("从相册选择", style = MaterialTheme.typography.labelLarge)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProcessingScreen(imageUri: android.net.Uri) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(NotionSpacing.md)) {
-            androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(48.dp))
-            Text("正在识别文字…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun EditorScreen(
-    formState: CaptureFormState,
-    recentReasons: List<com.errorbook.app.data.local.entity.ReasonEntity>,
-    onOcrTextChange: (String) -> Unit,
-    onNoteChange: (String) -> Unit,
-    onSourceChange: (String) -> Unit,
-    onSubjectSelect: (Long?) -> Unit,
-    onAddReason: (Long, String?) -> Unit,
-    onRemoveReason: (Long) -> Unit,
-    onReasonDetailChange: (Long, String?) -> Unit,
-    onSave: () -> Unit,
-    onBack: () -> Unit,
-) {
+private fun IdlePane(modifier: Modifier, onTakePhoto: () -> Unit, onPickGallery: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(NotionSpacing.md),
+        modifier = modifier
+            .fillMaxSize()
+            .padding(NotionSpacing.md),
         verticalArrangement = Arrangement.spacedBy(NotionSpacing.md),
     ) {
-        // OCR 文本编辑
-        TextField(
-            value = formState.ocrText,
+        Text(
+            "只记错因，不记答案",
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(
+            "拍下题目后自动识别文字，你只需要想清楚「我为什么错」，再选错因。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(
+            onClick = onTakePhoto,
+            modifier = Modifier.fillMaxWidth(),
+            shape = NotionShape.full,
+        ) {
+            Text("拍照", style = MaterialTheme.typography.labelLarge)
+        }
+        OutlinedButton(
+            onClick = onPickGallery,
+            modifier = Modifier.fillMaxWidth(),
+            shape = NotionShape.full,
+        ) {
+            Text("从相册选择", style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun EditPane(uiState: CaptureUiState, modifier: Modifier, onOcrTextChange: (String) -> Unit, onNoteChange: (String) -> Unit, onSourceChange: (String) -> Unit, onSubjectSelected: (Long?) -> Unit, onToggleReason: (com.errorbook.app.data.local.entity.ReasonEntity) -> Unit, onReasonDetailChange: (Long, String?) -> Unit, onSave: () -> Unit, onOpenNewReason: () -> Unit) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(NotionSpacing.md),
+        verticalArrangement = Arrangement.spacedBy(NotionSpacing.md),
+    ) {
+        uiState.imagePath?.let { path ->
+            AsyncImage(
+                model = File(path),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(4f / 3f),
+            )
+        }
+
+        OutlinedTextField(
+            value = uiState.ocrText,
             onValueChange = onOcrTextChange,
             label = { Text("题目文本") },
+            shape = NotionShape.extraSmall,
             modifier = Modifier.fillMaxWidth(),
-            minLines = 4,
+            minLines = 3,
             maxLines = 8,
         )
 
-        // 备注
-        TextField(
-            value = formState.note,
+        Row(horizontalArrangement = Arrangement.spacedBy(NotionSpacing.sm)) {
+            OutlinedTextField(
+                value = uiState.source,
+                onValueChange = onSourceChange,
+                label = { Text("来源") },
+                shape = NotionShape.extraSmall,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+            )
+            SubjectDropdown(
+                subjects = uiState.subjects,
+                selectedId = uiState.subjectId,
+                onSelected = onSubjectSelected,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        OutlinedTextField(
+            value = uiState.note,
             onValueChange = onNoteChange,
             label = { Text("备注（可选）") },
+            shape = NotionShape.extraSmall,
             modifier = Modifier.fillMaxWidth(),
             maxLines = 2,
         )
 
-        // 来源
-        TextField(
-            value = formState.source,
-            onValueChange = onSourceChange,
-            label = { Text("来源（可选，如：期中考试）") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
+        Text("为什么错？（至少选一个）", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "先想清楚再选，选了默认是这个错因；下方可以补一句具体说明。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        // 科目选择（简化）
-        androidx.compose.material3.OutlinedButton(
-            onClick = { onSubjectSelect(null) },
-            modifier = Modifier.fillMaxWidth(),
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(NotionSpacing.xs),
+            verticalArrangement = Arrangement.spacedBy(NotionSpacing.xs),
         ) {
-            Text(formState.subjectId?.let { "科目 ID: $it" } ?: "未分类", style = MaterialTheme.typography.bodyMedium)
-        }
-
-        // 错因选择
-        Text("为什么错？（至少选一个）", style = MaterialTheme.typography.titleMedium)
-        Column(verticalArrangement = Arrangement.spacedBy(NotionSpacing.xs)) {
-            recentReasons.forEach { reason ->
+            uiState.recentReasons.forEach { reason ->
+                val selection = uiState.reasons.firstOrNull { it.reason.id == reason.id }
                 ReasonChip(
-                    reason = reason,
-                    isSelected = formState.reasonLinks.any { it.reasonId == reason.id },
-                    onClick = { onAddReason(reason.id, null) },
-                    onDetailChange = { detail -> onReasonDetailChange(reason.id, detail) },
-                    currentDetail = formState.reasonLinks.firstOrNull { it.reasonId == reason.id }?.detail,
+                    name = reason.name,
+                    selected = selection != null,
+                    categoryColor = ReasonCategory.fromLabel(reason.category).color,
+                    onClick = { onToggleReason(reason) },
                 )
             }
-            // 显示已选但不在最近列表的
-            formState.reasonLinks.forEach { link ->
-                if (recentReasons.none { it.id == link.reasonId }) {
+            OutlinedButton(
+                onClick = onOpenNewReason,
+                shape = NotionShape.full,
+                modifier = Modifier.size(width = 88.dp, height = 32.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = NotionSpacing.sm,
+                ),
+            ) {
+                Text("+ 新建", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        uiState.reasons.forEach { selection ->
+            OutlinedTextField(
+                value = selection.detail.orEmpty(),
+                onValueChange = { onReasonDetailChange(selection.reason.id, it) },
+                label = { Text("${selection.reason.name}：具体错因说明（可选）") },
+                placeholder = { Text("例如「符号看错」") },
+                shape = NotionShape.extraSmall,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+        }
+
+        Button(
+            onClick = onSave,
+            enabled = uiState.canSave,
+            modifier = Modifier.fillMaxWidth(),
+            shape = NotionShape.full,
+        ) {
+            Text(
+                text = if (uiState.isSaving) "保存中…" else "保存",
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SubjectDropdown(subjects: List<com.errorbook.app.data.local.entity.SubjectEntity>, selectedId: Long?, onSelected: (Long?) -> Unit, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = subjects.firstOrNull { it.id == selectedId }?.name ?: "未分类"
+    Box(modifier) {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+        }
+        androidx.compose.material3.DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text("未分类") },
+                onClick = {
+                    onSelected(null)
+                    expanded = false
+                },
+            )
+            subjects.forEach { subject ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(subject.name) },
+                    onClick = {
+                        onSelected(subject.id)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewReasonDialog(name: String, onNameChange: (String) -> Unit, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("新建错因") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = onNameChange,
+                label = { Text("错因名称") },
+                shape = NotionShape.extraSmall,
+                singleLine = true,
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("创建") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}
+
+@Composable
+private fun SimilarReasonDialog(candidates: List<com.errorbook.app.data.local.entity.ReasonEntity>, onPick: (com.errorbook.app.data.local.entity.ReasonEntity) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("已存在相近的错因") },
+        text = {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(NotionSpacing.xs)) {
+                items(candidates, key = { it.id }) { candidate ->
                     ReasonChip(
-                        reason = com.errorbook.app.data.local.entity.ReasonEntity(
-                            id = link.reasonId,
-                            name = "错因 $link.reasonId",
-                            category = null,
-                            color = null,
-                            isArchived = false,
-                            createdAt = 0,
-                        ),
-                        isSelected = true,
-                        onClick = { onRemoveReason(link.reasonId) },
-                        onDetailChange = { detail -> onReasonDetailChange(link.reasonId, detail) },
-                        currentDetail = link.detail,
+                        name = candidate.name,
+                        onClick = { onPick(candidate) },
                     )
                 }
             }
-        }
-
-        androidx.compose.material3.Button(
-            onClick = onSave,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = formState.reasonLinks.isNotEmpty(),
-        ) {
-            Text("保存", style = MaterialTheme.typography.labelLarge)
-        }
-    }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
+    )
 }
 
-@Composable
-private fun ReasonChip(
-    reason: com.errorbook.app.data.local.entity.ReasonEntity,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    onDetailChange: (String?) -> Unit,
-    currentDetail: String?,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surface,
-        ),
-        onClick = onClick,
-    ) {
-        Column(modifier = Modifier.padding(NotionSpacing.md)) {
-            androidx.compose.foundation.layout.Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(reason.name, style = MaterialTheme.typography.bodyMedium, color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
-                androidx.compose.material3.Text(
-                    text = currentDetail?.takeIf { it.isNotBlank() } ?: "无说明",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (isSelected) {
-                TextField(
-                    value = currentDetail ?: "",
-                    onValueChange = onDetailChange,
-                    label = { Text("具体错因说明") },
-                    modifier = Modifier.fillMaxWidth().padding(top = NotionSpacing.sm),
-                    singleLine = true,
-                )
-            }
-        }
-    }
-}
+private fun hasCameraPermission(context: Context): Boolean = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+    PackageManager.PERMISSION_GRANTED
 
-@Composable
-private fun ErrorScreen(message: String, onRetry: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(NotionSpacing.md)) {
-            Text("识别失败", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
-            Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            androidx.compose.material3.Button(onClick = onRetry) { Text("重新选择") }
-        }
-    }
-}
+/** 相机输出走 FileProvider 授权的沙箱临时文件，Capture 完成后会被搬进 images/。 */
+private fun createCameraUri(context: Context) = com.errorbook.app.platform.camera.CameraOutput.createUri(context)

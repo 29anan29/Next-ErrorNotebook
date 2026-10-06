@@ -27,6 +27,6 @@ object ReviewResult {
 data class ReviewLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val questionReasonId: Long,
-    val reviewedAt: Long,
-    val result: String,
+    val reviewedAt: Long = 0L,
+    val result: String = ReviewResult.REMEMBERED,
 )

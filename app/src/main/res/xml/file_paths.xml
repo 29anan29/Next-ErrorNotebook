@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 系统相机拍照的临时输出目录 -->
+    <cache-path name="capture" path="capture/" />
+</paths>
