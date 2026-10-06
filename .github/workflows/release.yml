@@ -103,11 +103,31 @@ jobs:
       # 不使用 android-actions/setup-android：它内部会尝试安装早已被 Google 从 SDK
       # 仓库下线的遗留 `tools` 包，报 "Failed to find package 'tools'" 并让整步失败。
       # GitHub 托管 runner 已预装 Android SDK 与 cmdline-tools，直接用即可。
-      - name: 接受 SDK 许可
+      # 去掉 setup-android 后，runner 虽然自带 cmdline-tools，但 sdkmanager 并不在
+      # 默认 PATH 里。这里显式探测一次，并通过 GITHUB_PATH 让后续步骤都能用。
+      - name: 定位 sdkmanager
         run: |
           set -uo pipefail
           echo "ANDROID_HOME=${ANDROID_HOME:-未设置}"
-          ls -d "${ANDROID_HOME}"/cmdline-tools/*/ 2>/dev/null || true
+          sdk_bin=""
+          for d in "${ANDROID_HOME}"/cmdline-tools/*/bin; do
+            if [ -x "$d/sdkmanager" ]; then
+              sdk_bin="$d"
+              break
+            fi
+          done
+          if [ -z "$sdk_bin" ]; then
+            echo "::error::在 ${ANDROID_HOME}/cmdline-tools/*/bin 下找不到可执行的 sdkmanager"
+            ls -R "${ANDROID_HOME}/cmdline-tools" 2>/dev/null || true
+            exit 1
+          fi
+          echo "使用 sdkmanager：$sdk_bin/sdkmanager"
+          echo "$sdk_bin" >> "$GITHUB_PATH"
+
+      - name: 接受 SDK 许可
+        run: |
+          set -uo pipefail
+          sdkmanager --version
           yes | sdkmanager --licenses
           # sdkmanager 在未真正接受许可时也可能返回 0，因此不信任退出码，
           # 改为检查 AGP 实际依赖的许可文件是否落盘。
