@@ -8,20 +8,40 @@ plugins {
 }
 
 /**
- * release 签名所需的三个环境变量。未配置时不做 release 签名配置，
- * 而不是像直接读取 System.getenv 那样让配置阶段直接失败。
+ * release 签名配置。凭据来自 Gradle 属性（-P...）或同名环境变量，
+ * 两者都不存在时**不创建** release 签名配置——这保证没有密钥也能本地
+ * assembleDebug，甚至产出 unsigned release，而不会在配置阶段直接失败。
+ *
+ * CI 传入（见 .github/workflows/release.yml）：
+ *   ERRORBOOK_KEYSTORE            keystore 在工作区内的路径
+ *   ERRORBOOK_KEYSTORE_PASSWORD   keystore 口令
+ *   ERRORBOOK_KEY_ALIAS           key alias
+ *   ERRORBOOK_KEY_PASSWORD        key 口令
  */
-val keystorePath: String? = providers.gradleProperty("ERRORBOOK_KEYSTORE").orNull
+// 变量名刻意加了 release 前缀：在 signingConfigs.create("release") { ... } 作用域内，
+// keyPassword / keyAlias / storeFile 等名字会被 SigningConfig 自身的属性遮蔽，
+// 直接用同名外层变量会读到 SigningConfig 的空值，导致 packageRelease 报
+// "missing required property keyPassword"。
+val releaseStoreFile: String? = providers.gradleProperty("ERRORBOOK_KEYSTORE").orNull
     ?: System.getenv("ERRORBOOK_KEYSTORE")
-val keystorePassword: String? = providers.gradleProperty("ERRORBOOK_KEYSTORE_PASSWORD").orNull
+val releaseStorePassword: String? = providers.gradleProperty("ERRORBOOK_KEYSTORE_PASSWORD").orNull
     ?: System.getenv("ERRORBOOK_KEYSTORE_PASSWORD")
-val keyAlias: String? = providers.gradleProperty("ERRORBOOK_KEY_ALIAS").orNull
+val releaseKeyAlias: String? = providers.gradleProperty("ERRORBOOK_KEY_ALIAS").orNull
     ?: System.getenv("ERRORBOOK_KEY_ALIAS")
-val keyPassword: String? = providers.gradleProperty("ERRORBOOK_KEY_PASSWORD").orNull
+val releaseKeyPassword: String? = providers.gradleProperty("ERRORBOOK_KEY_PASSWORD").orNull
     ?: System.getenv("ERRORBOOK_KEY_PASSWORD")
 
-val hasReleaseSigning = listOf(keystorePath, keystorePassword, keyAlias, keyPassword)
-    .all { !it.isNullOrBlank() }
+val hasReleaseSigning = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+
+// 版本号默认写在构建脚本里，CI 发布时可用 -PVERSION_NAME / -PVERSION_CODE 覆盖，
+// 保证 tag、APK 内 BuildConfig、Release 说明三者始终一致。
+val resolvedVersionName: String = providers.gradleProperty("VERSION_NAME").getOrElse("0.0.1")
+val resolvedVersionCode: Int = providers.gradleProperty("VERSION_CODE").getOrElse("1").toInt()
 
 android {
     namespace = "com.errorbook.app"
@@ -34,8 +54,8 @@ android {
         // 被 targetSdk gate 的行为变更在该设备上不会触发，因此这里跟随 compileSdk。
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = resolvedVersionCode
+        versionName = resolvedVersionName
 
         testInstrumentationRunner = "com.errorbook.app.HiltTestRunner"
     }
@@ -43,12 +63,12 @@ android {
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {
-                storeFile = file(keystorePath!!)
-                storePassword = keystorePassword
-                keyAlias = keyAlias
-                keyPassword = keyPassword
-                enableV1Signing = true
-                enableV2Signing = true
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                // 不显式指定 v1/v2：minSdk 26 下 AGP 会自动选用 v2 + v3 签名方案，
+                // v1（JAR 签名）从 Android 7.0 起已无必要。
             }
         }
     }

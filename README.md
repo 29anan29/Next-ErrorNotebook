@@ -25,15 +25,62 @@
 
 ## 签名
 
-`app/build.gradle.kts` 从 Gradle 属性或同名环境变量读取签名信息，**任一项缺失时跳过 release 签名配置**（而不是让配置阶段直接失败）：
+签名凭据从 Gradle 属性（`-P...`）或同名环境变量读取。**任一项缺失时跳过 release 签名配置**（而不是像直接读 `System.getenv` 那样让配置阶段失败），所以没密钥也能 `assembleDebug`、产出 unsigned release。
 
 ```bash
 ./gradlew :app:assembleRelease \
-  -PERRORBOOK_KEYSTORE=keystore/errorbook.jks \
+  -PERRORBOOK_KEYSTORE=keystore/errorbook-release.p12 \
   -PERRORBOOK_KEYSTORE_PASSWORD=... \
   -PERRORBOOK_KEY_ALIAS=... \
   -PERRORBOOK_KEY_PASSWORD=...
 ```
+
+> 实现坑：`signingConfigs.create("release") { ... }` 作用域内，`keyPassword` / `keyAlias` / `storeFile`
+> 这些名字会被 `SigningConfig` 自身的属性**遮蔽**。直接写 `keyPassword = keyPassword` 会读到
+> `SigningConfig` 的空值，在 `packageRelease` 阶段才炸 `missing required property "keyPassword"`。
+> 所以外层变量统一加了 `release` 前缀。
+
+## 发版：GitHub Actions
+
+`.github/workflows/release.yml` 会跑质量门禁 → 注入版本号 → 签名出包 → 上传 GitHub Release。
+
+**一次性准备**（只需做一次）：
+
+```bash
+./scripts/generate-keystore.sh
+```
+
+它会生成 `keystore/errorbook-release.p12` 并打印出需要配置的四个 Secret。到仓库
+**Settings → Secrets and variables → Actions** 里新增（全部选 Secret 类型）：
+
+| Secret | 内容 |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 < keystore/errorbook-release.p12` 的输出 |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore 口令 |
+| `ANDROID_KEY_ALIAS` | key alias（默认 `errorbook`） |
+| `ANDROID_KEY_PASSWORD` | **与 keystore 口令相同**（PKCS12 是单口令容器） |
+
+`keystore/` 已在 `.gitignore` 中，workflow 还原密钥后还会用 `git check-ignore` 再兜底校验一次。
+四个 Secret 缺任意一个都会在 preflight 步骤直接失败并明确列出缺哪个。
+
+**触发发布**（二选一）：
+
+- 手动：Actions → **Release** → Run workflow，`version` 填 `0.0.1`，`prerelease` 勾 true；
+- 推 tag：`git push origin v0.0.1-dev`，版本号自动从 tag 取。
+
+workflow 的行为：
+
+- `versionCode` 用 `${{ github.run_number }}`，每次运行自动递增，不需要手填；
+- 质量门禁（`spotlessCheck` + `testDebugUnitTest` + `lintDebug`）不过就不出包；
+- 出包后用 `apksigner verify` 校验签名，产物重命名为 `errorbook-<version>.apk` 并附 `.sha256`；
+- `prerelease: true` 时发布为 GitHub **预发布**，不会出现在正式 Release 列表里；
+- Release 说明留空时自动汇总上次 tag 以来的提交。
+
+> keystore 一旦丢失就无法再发布可覆盖安装的更新，请离线备份。
+
+> **关于口令**：PKCS12 是单口令容器，key 口令必须与 keystore 口令一致，`keytool` 会忽略单独的 `-keypass`。
+> 如果你之前用 JKS 生成了密钥库且两者口令不同，AGP 仍能正常签名（JKS 才支持双口令），
+> 但建议统一成 PKCS12 + 单一口令以避免混淆。
 
 ## 关键实现说明
 
@@ -96,7 +143,6 @@ PRD §5.3.1 定义「每关联一次错因，计数 +1」，但文档 §4.2 的�
 ## 架构
 
 单模块三层（Presentation / Domain / Data）+ Platform Services，包结构见 `docs/技术文档.md` §3.2。
-
 ```
 data/local/{entity,dao}   5 张表 + 4 个 DAO + 预置错因种子
 data/repository           Question / Reason / Subject / Export
