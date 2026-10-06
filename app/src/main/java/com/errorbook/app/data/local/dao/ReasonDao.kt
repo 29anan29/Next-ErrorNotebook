@@ -63,6 +63,21 @@ interface ReasonDao {
     )
     fun getReasonRanking(subjectId: Long?, since: Long?): Flow<List<ReasonWithCount>>
 
+    /** 单个错因的详情统计（错因详情页标题区）。 */
+    @Query(
+        """
+        SELECT r.id AS id, r.name AS name, r.category AS category, r.color AS color,
+               COUNT(qr.id) AS wrongCount,
+               COUNT(DISTINCT qr.questionId) AS questionCount,
+               MAX(COALESCE(qr.createdAt, 0)) AS lastWrongAt
+        FROM reasons r
+        LEFT JOIN question_reasons qr ON qr.reasonId = r.id
+        WHERE r.id = :reasonId
+        GROUP BY r.id
+        """,
+    )
+    fun getReasonDetail(reasonId: Long): Flow<ReasonWithCount?>
+
     /** 最近使用过的错因（录题页快捷选择），同题常用错因排前面。 */
     @Query(
         """

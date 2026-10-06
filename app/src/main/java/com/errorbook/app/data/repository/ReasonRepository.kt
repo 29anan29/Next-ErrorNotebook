@@ -18,6 +18,8 @@ class ReasonRepository @Inject constructor(
 
     fun getRecentUsed(limit: Int): Flow<List<ReasonEntity>> = reasonDao.getRecentUsed(limit)
 
+    fun getDetail(reasonId: Long): Flow<ReasonWithCount?> = reasonDao.getReasonDetail(reasonId)
+
     suspend fun getById(id: Long): ReasonEntity? = reasonDao.getById(id)
 
     suspend fun getByName(name: String): ReasonEntity? = reasonDao.getByName(name)
